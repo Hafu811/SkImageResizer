@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -56,26 +57,66 @@ namespace SkImageResizer
             await Task.Yield();
 
             var allFiles = FindImages(sourcePath);
+            List<Task> tasks = new List<Task>();
             foreach (var filePath in allFiles)
             {
-                var bitmap = SKBitmap.Decode(filePath);
-                var imgPhoto = SKImage.FromBitmap(bitmap);
-                var imgName = Path.GetFileNameWithoutExtension(filePath);
+                tasks.Add(Task.Run(() =>
+                {
+                    var bitmap = SKBitmap.Decode(filePath);
+                    var imgPhoto = SKImage.FromBitmap(bitmap);
+                    var imgName = Path.GetFileNameWithoutExtension(filePath);
 
-                var sourceWidth = imgPhoto.Width;
-                var sourceHeight = imgPhoto.Height;
+                    var sourceWidth = imgPhoto.Width;
+                    var sourceHeight = imgPhoto.Height;
 
-                var destinationWidth = (int)(sourceWidth * scale);
-                var destinationHeight = (int)(sourceHeight * scale);
+                    var destinationWidth = (int)(sourceWidth * scale);
+                    var destinationHeight = (int)(sourceHeight * scale);
 
-                using var scaledBitmap = bitmap.Resize(
-                    new SKImageInfo(destinationWidth, destinationHeight),
-                    SKFilterQuality.High);
-                using var scaledImage = SKImage.FromBitmap(scaledBitmap);
-                using var data = scaledImage.Encode(SKEncodedImageFormat.Jpeg, 100);
-                using var s = File.OpenWrite(Path.Combine(destPath, imgName + ".jpg"));
-                data.SaveTo(s);
+                    using var scaledBitmap = bitmap.Resize(
+                        new SKImageInfo(destinationWidth, destinationHeight),
+                        SKFilterQuality.High);
+                    using var scaledImage = SKImage.FromBitmap(scaledBitmap);
+                    using var data = scaledImage.Encode(SKEncodedImageFormat.Jpeg, 100);
+                    using var s = File.OpenWrite(Path.Combine(destPath, imgName + ".jpg"));
+                    data.SaveTo(s);
+                }));
             }
+
+            await Task.WhenAll(tasks);
+        }
+
+        private void work(string filePath, string destPath, double scale)
+        {
+            //Stopwatch sw = new Stopwatch();
+            //sw.Start();
+            var bitmap = SKBitmap.Decode(filePath);
+            var imgPhoto = SKImage.FromBitmap(bitmap);
+            var imgName = Path.GetFileNameWithoutExtension(filePath);
+
+            var sourceWidth = imgPhoto.Width;
+            var sourceHeight = imgPhoto.Height;
+
+            var destinationWidth = (int)(sourceWidth * scale);
+            var destinationHeight = (int)(sourceHeight * scale);
+            //Console.WriteLine("a" + Thread.CurrentThread.ManagedThreadId + "_" + sw.ElapsedMilliseconds);
+
+            using var scaledBitmap = bitmap.Resize(
+            new SKImageInfo(destinationWidth, destinationHeight),
+            SKFilterQuality.High);
+            //Console.WriteLine("b" + Thread.CurrentThread.ManagedThreadId + "_" + sw.ElapsedMilliseconds);
+            using var scaledImage = SKImage.FromBitmap(scaledBitmap);
+            //Console.WriteLine("c" + Thread.CurrentThread.ManagedThreadId + "_" + sw.ElapsedMilliseconds);
+            using var data = scaledImage.Encode(SKEncodedImageFormat.Jpeg, 100);
+            //Console.WriteLine("d" + Thread.CurrentThread.ManagedThreadId + "_" + sw.ElapsedMilliseconds);
+            using var s = File.OpenWrite(Path.Combine(destPath, imgName + ".jpg"));
+            //Console.WriteLine("e" + Thread.CurrentThread.ManagedThreadId + "_" + sw.ElapsedMilliseconds);
+            data.SaveTo(s);
+            //a6_35
+            //b6_723
+            //c6_734
+            //d6_945
+            //e6_948
+
         }
 
         /// <summary>
