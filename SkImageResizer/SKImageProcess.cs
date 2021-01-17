@@ -47,7 +47,7 @@ namespace SkImageResizer
             }
         }
 
-        public async Task ResizeImagesAsync(string sourcePath, string destPath, double scale)
+        public async Task ResizeImagesAsync(string sourcePath, string destPath, double scale , CancellationToken token)
         {
             if (!Directory.Exists(destPath))
             {
@@ -62,6 +62,7 @@ namespace SkImageResizer
             {
                 tasks.Add(Task.Run(() =>
                 {
+                    token.ThrowIfCancellationRequested();
                     var bitmap = SKBitmap.Decode(filePath);
                     var imgPhoto = SKImage.FromBitmap(bitmap);
                     var imgName = Path.GetFileNameWithoutExtension(filePath);
